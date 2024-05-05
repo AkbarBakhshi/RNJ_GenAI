@@ -19,7 +19,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Avatar } from "@rneui/themed";
 
 export default function Chat() {
-  const backendUrl = "http://192.168.0.10:8000";
+  const backendUrl = "http://YOUR-IP:8000" || "YOUR HOSTED BACKEND URL";
   const [chatText, setChatText] = useState("");
   const [textInputHeight, setTextInputHeight] = useState(60);
   const [sendingChat, setSendingChat] = useState(false);
