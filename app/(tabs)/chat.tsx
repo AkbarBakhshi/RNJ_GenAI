@@ -18,6 +18,12 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Avatar } from "@rneui/themed";
 
+interface CustomRequestInit extends RequestInit {
+  reactNative?: {
+    textStreaming: boolean;
+  };
+}
+
 export default function Chat() {
   const backendUrl = "http://YOUR-IP:8000" || "YOUR HOSTED BACKEND URL";
   const [chatText, setChatText] = useState("");
@@ -26,6 +32,7 @@ export default function Chat() {
   const [conversation, setConversation] = useState<
     { role: String; content: string }[]
   >([]);
+  const [lastMessage, setLastMessage] = useState("");
 
   const translateYRef = useRef(new Animated.Value(0)).current;
   const tabBarHeight = useBottomTabBarHeight();
@@ -100,27 +107,70 @@ export default function Chat() {
             },
           },
         }),
+        reactNative: { textStreaming: true },
+      } as CustomRequestInit);
+
+      const stream = response.body;
+      const reader = stream?.getReader();
+      const decoder = new TextDecoder("utf-8");
+      
+      let accumulatedMessage = "";
+      let i = 0;
+      const streamingPromise = new Promise<void>((resolve, reject) => {
+        reader?.read().then(function processResult(result) {
+          if (result.done) {
+            //==================message clean-up if needed============
+            // accumulatedMessage = accumulatedMessage.trimEnd();
+            // accumulatedMessage = accumulatedMessage.trimStart();
+            // accumulatedMessage = accumulatedMessage.startsWith('"')
+            //   ? accumulatedMessage.slice(1)
+            //   : accumulatedMessage;
+            // accumulatedMessage = accumulatedMessage.endsWith('"')
+            //   ? accumulatedMessage.slice(0, -1)
+            //   : accumulatedMessage;
+
+            const newAIMessage = {
+              content: accumulatedMessage.trimEnd(),
+              role: "AI",
+            };
+            setConversation((prevConversation) => [
+              ...prevConversation,
+              newAIMessage,
+            ]);
+            resolve(); // Resolve the promise when streaming is completed
+            return;
+          }
+
+          const token = decoder.decode(result.value);
+          setLastMessage((prevText) => prevText + token);
+
+          //===========Checking streaming timeline against BE
+          // var now = new Date();
+          // var hours = now.getHours();
+          // var minutes = now.getMinutes();
+          // var seconds = now.getSeconds();
+          // var milliseconds = now.getMilliseconds();
+          // i++;
+          // console.log(
+          //   i +
+          //     ": " +
+          //     hours +
+          //     ":" +
+          //     minutes +
+          //     ":" +
+          //     seconds +
+          //     "." +
+          //     milliseconds
+          // );
+          
+          accumulatedMessage += token;
+          reader.read().then(processResult);
+        });
       });
-      if (response.ok) {
-        // Parse the response body as JSON
-        const jsonResponse = await response.json();
-        // Extract the actual response content
-        const responseData = jsonResponse; // Adjust this according to the structure of your response
-        
-        // Now you can work with the actual response data
-        console.log(responseData);
-        const newAIMessage = {
-          content: responseData.trimEnd(),
-          role: "AI",
-        };
-        setConversation((prevConversation) => [
-          ...prevConversation,
-          newAIMessage,
-        ]);
-      } else {
-        // Handle error response
-        console.error('Error:', response.statusText);
-      }
+
+      await streamingPromise;
+      setLastMessage("");
+      setSendingChat(false);
     } catch (error) {
       setSendingChat(false);
       setChatText(messageValue);
@@ -129,7 +179,6 @@ export default function Chat() {
       );
       console.error(error);
     }
-    setSendingChat(false);
   };
 
   return (
@@ -191,6 +240,23 @@ export default function Chat() {
                   </View>
                 )
               )}
+            </View>
+          )}
+          {lastMessage !== "" && (
+            <View className="flex flex-row justify-start mb-1 items-center">
+              <FontAwesome size={28} name="android" color="blue" />
+
+              <View className="p-2 bg-dark-blue mx-2 rounded-lg w-4/5 bg-gray-500">
+                <Text
+                  style={{
+                    fontSize: 16,
+                    lineHeight: 20,
+                  }}
+                  className="text-white"
+                >
+                  {lastMessage}
+                </Text>
+              </View>
             </View>
           )}
         </View>

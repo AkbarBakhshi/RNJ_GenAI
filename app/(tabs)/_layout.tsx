@@ -1,3 +1,4 @@
+import 'react-native-polyfill-globals/auto';
 import React from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs } from "expo-router";
